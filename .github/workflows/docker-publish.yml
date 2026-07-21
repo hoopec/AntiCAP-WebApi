@@ -1,0 +1,90 @@
+name: Build and Push Docker Image
+
+# 该 workflow 在推送代码或打 tag 时，将镜像构建并推送到 GitHub Container Registry (GHCR)
+# 镜像地址: ghcr.io/hoopec/anticap-webapi
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  # 支持手动触发
+  workflow_dispatch:
+
+# 取消同一分支上尚未完成的旧构建，节省资源
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  # 镜像名全部小写（GHCR 要求），仓库名 AntiCAP-WebApi -> anticap-webapi
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # 用于推送镜像到 GHCR
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # PR 事件不登录、不推送，仅做构建验证
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 自动生成镜像标签：
+      #   - push 到 main/master -> latest + sha-xxxxxx
+      #   - 打 tag v1.2.3      -> 1.2.3, 1.2, 1, latest
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          # 默认仅构建 amd64，保证依赖兼容与构建速度
+          # 如需 arm64 支持，改为 platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # 使用 GitHub Actions 缓存加速后续构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Output image digest
+        if: github.event_name != 'pull_request'
+        run: echo "镜像已推送，digest=${{ steps.build.outputs.digest }}"

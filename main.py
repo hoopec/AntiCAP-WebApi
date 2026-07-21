@@ -48,12 +48,17 @@ async def lifespan(app: FastAPI):
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_secret_key():
-    key_file = "secret.key"
+    # 支持通过环境变量指定 secret.key 的存放路径，便于容器化部署时持久化
+    key_file = os.environ.get("SECRET_KEY_FILE", "secret.key")
     if os.path.exists(key_file):
         with open(key_file, "r") as f:
             return f.read().strip()
     else:
         new_key = os.urandom(32).hex()
+        # 确保目标目录存在
+        key_dir = os.path.dirname(key_file)
+        if key_dir:
+            os.makedirs(key_dir, exist_ok=True)
         with open(key_file, "w") as f:
             f.write(new_key)
         return new_key
@@ -500,4 +505,7 @@ if __name__ == '__main__':
 
     uvicorn_access_logger = logging.getLogger("uvicorn.access")
     uvicorn_access_logger.addFilter(NoStaticFilter())
-    uvicorn.run(app, host="0.0.0.0", port=6688, access_log=True)
+    # 支持通过环境变量配置监听地址和端口，默认 0.0.0.0:6688
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "6688"))
+    uvicorn.run(app, host=host, port=port, access_log=True)

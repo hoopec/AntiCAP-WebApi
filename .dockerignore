@@ -1,0 +1,32 @@
+# 版本控制
+.git
+.gitignore
+.github
+
+# Python 缓存与虚拟环境
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.venv/
+venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+
+# 本地运行产生的数据文件（容器内会重新生成到 /app/data）
+app.db
+secret.key
+
+# 本地构建/脚本（镜像内不需要）
+Run-Windows.bat
+Run-Linux.sh
+
+# 文档与许可证
+README.md
+LICENSE
+
+# Docker 自身文件
+Dockerfile
+.dockerignore

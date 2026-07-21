@@ -2,9 +2,17 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
+import os
 import enum
 
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./app.db"
+# 支持通过环境变量指定 SQLite 数据库文件路径，便于容器化部署时持久化
+DB_PATH = os.environ.get("DB_PATH", "./app.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
+
+# 确保数据库文件所在目录存在
+_db_dir = os.path.dirname(DB_PATH)
+if _db_dir:
+    os.makedirs(_db_dir, exist_ok=True)
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
