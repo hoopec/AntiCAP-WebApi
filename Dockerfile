@@ -37,10 +37,14 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 # 将 AntiCAP 模型目录软链接到持久化数据卷，避免每次启动重新下载模型
 # AntiCAP 默认将模型下载到 site-packages/AntiCAP/AntiCAP-Models/，该路径在容器可写层，
 # 容器重建后会丢失。通过软链接指向 /app/data/models 即可持久化。
-RUN MODELS_DIR=$(python -c "import AntiCAP, os; print(os.path.join(os.path.dirname(AntiCAP.__file__), 'AntiCAP-Models'))") && \
+# 将路径写入文件而非用 $(...) 捕获 stdout，避免 import AntiCAP 时
+# Ultralytics 的警告信息污染路径变量导致 ln 失败
+RUN python -c "import AntiCAP, os; open('/tmp/models_dir.txt','w').write(os.path.join(os.path.dirname(AntiCAP.__file__), 'AntiCAP-Models'))" && \
+    MODELS_DIR=$(cat /tmp/models_dir.txt) && \
     rm -rf "$MODELS_DIR" && \
     mkdir -p /app/data/models /app/data/ultralytics-config && \
-    ln -s /app/data/models "$MODELS_DIR"
+    ln -s /app/data/models "$MODELS_DIR" && \
+    rm -f /tmp/models_dir.txt
 
 # 复制项目代码与静态资源
 COPY main.py database.py ./
