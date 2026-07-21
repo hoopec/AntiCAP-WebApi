@@ -96,7 +96,7 @@ docker run -d \
 # 默认账号密码均为 admin
 ```
 
-> 说明：`-v anticap-data:/app/data` 会将 SQLite 数据库（`app.db`）和 JWT 密钥（`secret.key`）持久化到 Docker 命名卷 `anticap-data` 中，容器重建后账号与登录态不会丢失。
+> 说明：`-v anticap-data:/app/data` 会将 SQLite 数据库（`app.db`）、JWT 密钥（`secret.key`）以及 AntiCAP 模型文件持久化到 Docker 命名卷 `anticap-data` 中，容器重建后账号、登录态与模型均不会丢失（无需重新下载模型）。
 
 ### 方式二：本地构建镜像运行
 
@@ -159,6 +159,7 @@ docker compose down
 | `HOST` | `0.0.0.0` | 服务监听地址 |
 | `DB_PATH` | `/app/data/app.db` | SQLite 数据库文件路径 |
 | `SECRET_KEY_FILE` | `/app/data/secret.key` | JWT 密钥文件路径 |
+| `YOLO_CONFIG_DIR` | `/app/data/ultralytics-config` | Ultralytics 配置目录（持久化） |
 
 如需修改端口，例如改为 `8080`：
 

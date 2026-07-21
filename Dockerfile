@@ -34,16 +34,22 @@ COPY requirements.txt .
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
+# 将 AntiCAP 模型目录软链接到持久化数据卷，避免每次启动重新下载模型
+# AntiCAP 默认将模型下载到 site-packages/AntiCAP/AntiCAP-Models/，该路径在容器可写层，
+# 容器重建后会丢失。通过软链接指向 /app/data/models 即可持久化。
+RUN MODELS_DIR=$(python -c "import AntiCAP, os; print(os.path.join(os.path.dirname(AntiCAP.__file__), 'AntiCAP-Models'))") && \
+    rm -rf "$MODELS_DIR" && \
+    mkdir -p /app/data/models /app/data/ultralytics-config && \
+    ln -s /app/data/models "$MODELS_DIR"
+
 # 复制项目代码与静态资源
 COPY main.py database.py ./
 COPY static/ ./static/
 
-# 创建数据目录用于持久化 SQLite 数据库与 secret.key
-RUN mkdir -p /app/data
-
-# 通过环境变量将数据库与密钥指向持久化目录
+# 通过环境变量将数据库、密钥、模型、Ultralytics 配置指向持久化目录
 ENV DB_PATH=/app/data/app.db \
     SECRET_KEY_FILE=/app/data/secret.key \
+    YOLO_CONFIG_DIR=/app/data/ultralytics-config \
     HOST=0.0.0.0 \
     PORT=6688
 
