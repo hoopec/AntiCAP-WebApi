@@ -62,4 +62,5 @@ EXPOSE 6688
 # 使用 tini 作为 init 进程，确保信号正确传递、僵尸进程被回收
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-CMD ["python", "main.py"]
+# 启动前确保持久化子目录存在（数据卷可能遮住了构建阶段创建的目录） 
+CMD sh -c "mkdir -p /app/data/models /app/data/ultralytics-config && exec python main.py"
